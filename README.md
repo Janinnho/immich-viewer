@@ -50,210 +50,76 @@
 
 ## Docker Deployment Guide
 
-This guide will help you deploy this specific fork of Immich on your server using Docker. If you prefer to use the official Immich installation, please refer to the [official documentation](https://immich.app/docs/install/requirements).
+Simple guide to deploy this Immich fork using Docker after downloading the repository as a zip file.
 
 ### Prerequisites
 
-Before starting, ensure your server has:
-- **Docker** (version 20.10 or higher)
-- **Docker Compose** (version 2.0 or higher)
-- **Git** (to clone this repository)
-- At least **4GB RAM** (8GB recommended)
-- **10GB+ free disk space** (more depending on your media collection)
+- **Docker** and **Docker Compose** installed
+- At least **4GB RAM**
+- **10GB+ free disk space**
 
-### Step-by-Step Deployment
+### Deployment Steps
 
-#### 1. Clone This Repository
+#### 1. Download Repository
 
-```bash
-git clone https://github.com/Janinnho/immich-viewer.git
-cd immich-viewer
-```
+Download this repository as a ZIP file from GitHub:
+- Click the green "Code" button on the GitHub page
+- Select "Download ZIP"
+- Extract the ZIP file to your desired location
 
 #### 2. Navigate to Docker Directory
 
 ```bash
-cd docker
+cd immich-viewer-main/docker
 ```
 
 #### 3. Create Environment File
-
-Copy the example environment file and customize it:
 
 ```bash
 cp example.env .env
 ```
 
-#### 4. Configure Environment Variables
+#### 4. Edit Configuration
 
-Edit the `.env` file with your preferred settings:
+Edit the `.env` file and change the database password:
 
 ```bash
 nano .env
 ```
 
-**Important settings to customize:**
-
-- `UPLOAD_LOCATION`: Path where your photos/videos will be stored (e.g., `./library`)
-- `DB_DATA_LOCATION`: Path where database files will be stored (e.g., `./postgres`)
-- `DB_PASSWORD`: Change this to a secure password
-- `TZ`: Set your timezone (e.g., `America/New_York`, `Europe/London`)
-
-**Example `.env` configuration:**
+Change this line:
 ```env
-# The location where your uploaded files are stored
-UPLOAD_LOCATION=./library
-
-# The location where your database files are stored
-DB_DATA_LOCATION=./postgres
-
-# Set your timezone
-TZ=America/New_York
-
-# The Immich version to use
-IMMICH_VERSION=release
-
-# Change this to a secure password
 DB_PASSWORD=your_secure_password_here
-
-# The values below typically don't need to be changed
-DB_USERNAME=postgres
-DB_DATABASE_NAME=immich
 ```
 
-#### 5. Create Required Directories
-
-```bash
-mkdir -p ${UPLOAD_LOCATION:-./library}
-mkdir -p ${DB_DATA_LOCATION:-./postgres}
-```
-
-#### 6. Start the Services
-
-Launch all Immich services:
+#### 5. Start Services
 
 ```bash
 docker compose up -d
 ```
 
-#### 7. Verify Deployment
+#### 6. Access Immich
 
-Check that all containers are running:
+Open your browser and go to: `http://localhost:2283`
 
+Create your admin account and start using Immich!
+
+### Basic Commands
+
+**Stop services:**
 ```bash
-docker compose ps
+docker compose down
 ```
 
-You should see all services (`immich-server`, `immich-machine-learning`, `redis`, `database`) in "Up" status.
-
-#### 8. Access Your Immich Instance
-
-- **Web Interface**: Open your browser and navigate to `http://your-server-ip:2283`
-- **Mobile App**: Use `http://your-server-ip:2283` as the server URL
-
-Replace `your-server-ip` with your actual server's IP address.
-
-### Initial Setup
-
-1. On first access, you'll be prompted to create an admin account
-2. Fill in the required information (email, password, name)
-3. Start uploading your photos and videos!
-
-### Maintenance Commands
-
-#### View Logs
+**View logs:**
 ```bash
-# View logs for all services
 docker compose logs
-
-# View logs for a specific service
-docker compose logs immich-server
-docker compose logs immich-machine-learning
 ```
 
-#### Update Immich
+**Update:**
 ```bash
-# Pull latest images and restart
-docker compose pull
-docker compose up -d
+docker compose pull && docker compose up -d
 ```
-
-#### Stop Services
-```bash
-docker compose down
-```
-
-#### Backup Your Data
-It's crucial to backup your data regularly:
-
-```bash
-# Stop services
-docker compose down
-
-# Backup your upload directory and database
-tar -czf immich-backup-$(date +%Y%m%d).tar.gz ./library ./postgres
-
-# Restart services
-docker compose up -d
-```
-
-### Troubleshooting
-
-#### Common Issues
-
-**Port 2283 already in use:**
-- Change the port mapping in `docker-compose.yml`: `ports: - '3001:2283'`
-- Access via `http://your-server-ip:3001`
-
-**Permission issues:**
-```bash
-# Fix ownership of data directories
-sudo chown -R $USER:$USER ./library ./postgres
-```
-
-**Database connection issues:**
-- Ensure `DB_PASSWORD` in `.env` matches between all services
-- Check that the database container is healthy: `docker compose ps`
-
-**Out of memory:**
-- Ensure your server has sufficient RAM
-- Consider adding swap space if running on a low-memory system
-
-#### Container Health Checks
-```bash
-# Check container health
-docker compose ps
-
-# Check specific container logs
-docker logs immich_server
-docker logs immich_postgres
-```
-
-### Hardware Acceleration (Optional)
-
-For better performance, you can enable hardware acceleration:
-
-1. **GPU Acceleration**: Uncomment the relevant sections in `docker-compose.yml`
-2. **CPU Optimization**: Adjust the `hwaccel` settings based on your hardware
-
-Refer to the [ML Hardware Acceleration guide](https://immich.app/docs/features/ml-hardware-acceleration) for detailed configuration.
-
-### Security Considerations
-
-- **Change default passwords**: Always use strong, unique passwords
-- **Firewall**: Consider restricting access to port 2283 to trusted networks
-- **HTTPS**: For production use, consider setting up a reverse proxy with SSL/TLS
-- **Regular updates**: Keep Immich and Docker updated for security patches
-
-### Advanced Configuration
-
-For advanced configurations such as:
-- Custom storage locations
-- External databases
-- Reverse proxy setup
-- Scaling for multiple users
-
-Please refer to the [official Immich documentation](https://immich.app/docs).
 
 ## Links
 
