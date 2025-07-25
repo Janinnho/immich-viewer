@@ -1,5 +1,6 @@
 <script lang="ts">
   import { alwaysLoadOriginalFile } from '$lib/stores/preferences.store';
+  import { isMobileDevice } from '$lib/utils/device-utils';
   import {
     EquirectangularAdapter,
     Viewer,
@@ -8,6 +9,8 @@
     type PluginConstructor,
   } from '@photo-sphere-viewer/core';
   import '@photo-sphere-viewer/core/index.css';
+  import { GyroscopePlugin } from '@photo-sphere-viewer/gyroscope-plugin';
+  import '@photo-sphere-viewer/gyroscope-plugin/index.css';
   import { ResolutionPlugin } from '@photo-sphere-viewer/resolution-plugin';
   import { SettingsPlugin } from '@photo-sphere-viewer/settings-plugin';
   import '@photo-sphere-viewer/settings-plugin/index.css';
@@ -25,64 +28,127 @@
 
   let container: HTMLDivElement | undefined = $state();
   let viewer: Viewer;
+  let gyroscopeEnabled = $state(false);
+  let is360DegreeImage = $state(true); // Assuming this is a 360-degree image context
 
   onMount(() => {
     if (!container) {
       return;
     }
 
+    const basePlugins: (PluginConstructor | [PluginConstructor, unknown])[] = [
+      SettingsPlugin,
+      [
+        ResolutionPlugin,
+        {
+          // For 360-degree images, load high resolution by default to bypass intermediate resolutions
+          defaultResolution: is360DegreeImage && originalPanorama ? 'original' : ($alwaysLoadOriginalFile && originalPanorama ? 'original' : 'default'),
+          resolutions: [
+            {
+              id: 'default',
+              label: 'Default',
+              panorama,
+            },
+            ...(originalPanorama
+              ? [
+                  {
+                    id: 'original',
+                    label: 'Original',
+                    panorama: originalPanorama,
+                  },
+                ]
+              : []),
+          ],
+        },
+      ],
+    ];
+
+    // Add gyroscope plugin for mobile devices
+    if (isMobileDevice()) {
+      basePlugins.push([
+        GyroscopePlugin,
+        {
+          touchmove: true,
+          absolutePosition: true,
+        }
+      ]);
+    }
+
     viewer = new Viewer({
       adapter,
       plugins: [
-        SettingsPlugin,
-        [
-          ResolutionPlugin,
-          {
-            defaultResolution: $alwaysLoadOriginalFile && originalPanorama ? 'original' : 'default',
-            resolutions: [
-              {
-                id: 'default',
-                label: 'Default',
-                panorama,
-              },
-              ...(originalPanorama
-                ? [
-                    {
-                      id: 'original',
-                      label: 'Original',
-                      panorama: originalPanorama,
-                    },
-                  ]
-                : []),
-            ],
-          },
-        ],
+        ...basePlugins,
         ...plugins,
       ],
       container,
+      // Enhanced mobile touch settings for better responsiveness
       touchmoveTwoFingers: false,
       mousewheelCtrlKey: false,
+      // Mobile optimized inertia settings for faster swipe response
+      moveInertia: isMobileDevice(),
       navbar,
       minFov: 10,
       maxFov: 120,
       fisheye: false,
     });
     const resolutionPlugin = viewer.getPlugin(ResolutionPlugin) as ResolutionPlugin;
-    const zoomHandler = ({ zoomLevel }: events.ZoomUpdatedEvent) => {
-      // zoomLevel range: [0, 100]
-      if (Math.round(zoomLevel) >= 75) {
-        // Replace the preview with the original
+    
+    // For 360-degree images, we want to load high resolution immediately
+    // rather than waiting for zoom level changes
+    if (is360DegreeImage && originalPanorama && !$alwaysLoadOriginalFile) {
+      // Load original resolution by default for 360-degree images to save bandwidth
+      // and avoid unnecessary intermediate image generation
+      setTimeout(() => {
         void resolutionPlugin.setResolution('original');
-        viewer.removeEventListener(events.ZoomUpdatedEvent.type, zoomHandler);
-      }
-    };
+      }, 100);
+    } else {
+      // Standard zoom-based resolution switching for regular images
+      const zoomHandler = ({ zoomLevel }: events.ZoomUpdatedEvent) => {
+        // zoomLevel range: [0, 100]
+        if (Math.round(zoomLevel) >= 75) {
+          // Replace the preview with the original
+          void resolutionPlugin.setResolution('original');
+          viewer.removeEventListener(events.ZoomUpdatedEvent.type, zoomHandler);
+        }
+      };
 
-    if (originalPanorama && !$alwaysLoadOriginalFile) {
-      viewer.addEventListener(events.ZoomUpdatedEvent.type, zoomHandler, { passive: true });
+      if (originalPanorama && !$alwaysLoadOriginalFile) {
+        viewer.addEventListener(events.ZoomUpdatedEvent.type, zoomHandler, { passive: true });
+      }
     }
 
-    return () => viewer.removeEventListener(events.ZoomUpdatedEvent.type, zoomHandler);
+    // Handle gyroscope toggle functionality
+    const gyroscopePlugin = viewer.getPlugin(GyroscopePlugin) as GyroscopePlugin | undefined;
+    if (gyroscopePlugin) {
+      gyroscopePlugin.stop(); // Start with gyroscope disabled
+    }
+
+    return () => {
+      const zoomHandler = ({ zoomLevel }: events.ZoomUpdatedEvent) => {
+        if (Math.round(zoomLevel) >= 75) {
+          void resolutionPlugin.setResolution('original');
+          viewer.removeEventListener(events.ZoomUpdatedEvent.type, zoomHandler);
+        }
+      };
+      viewer.removeEventListener(events.ZoomUpdatedEvent.type, zoomHandler);
+    };
   });
+
+  // Function to toggle gyroscope
+  const toggleGyroscope = () => {
+    if (!isMobileDevice()) return;
+    
+    const gyroscopePlugin = viewer?.getPlugin(GyroscopePlugin) as GyroscopePlugin | undefined;
+    if (gyroscopePlugin) {
+      if (gyroscopeEnabled) {
+        gyroscopePlugin.stop();
+        gyroscopeEnabled = false;
+      } else {
+        gyroscopePlugin.start();
+        gyroscopeEnabled = true;
+      }
+    }
+  };
 
   onDestroy(() => {
     if (viewer) {
@@ -91,4 +157,35 @@
   });
 </script>
 
-<div class="h-full w-full mb-0" bind:this={container}></div>
+<div class="relative h-full w-full">
+  <div class="h-full w-full mb-0" bind:this={container}></div>
+  
+  <!-- Gyroscope toggle button for mobile devices -->
+  {#if isMobileDevice()}
+    <button
+      class="absolute top-4 right-4 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 transition-all duration-200 z-10"
+      onclick={toggleGyroscope}
+      title={gyroscopeEnabled ? 'Disable Gyroscope' : 'Enable Gyroscope'}
+      aria-label={gyroscopeEnabled ? 'Disable Gyroscope' : 'Enable Gyroscope'}
+    >
+      <svg 
+        width="24" 
+        height="24" 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        xmlns="http://www.w3.org/2000/svg"
+        class="transition-transform duration-200 {gyroscopeEnabled ? 'text-blue-400' : 'text-white'}"
+      >
+        <path 
+          d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM12 20c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" 
+          fill="currentColor"
+        />
+        <path 
+          d="M12 6c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z" 
+          fill="currentColor"
+        />
+        <circle cx="12" cy="12" r="2" fill="currentColor"/>
+      </svg>
+    </button>
+  {/if}
+</div>
