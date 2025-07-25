@@ -41,9 +41,18 @@
       [
         ResolutionPlugin,
         {
-          // For 360-degree images, load high resolution by default to bypass intermediate resolutions
-          defaultResolution: is360DegreeImage && originalPanorama ? 'original' : ($alwaysLoadOriginalFile && originalPanorama ? 'original' : 'default'),
-          resolutions: [
+          // For 360-degree images, skip intermediate resolutions and load high-res by default
+          // This avoids blurry intermediate previews since 360° images are essentially always "zoomed in"
+          defaultResolution: is360DegreeImage && originalPanorama ? 'original' : 'default',
+          resolutions: is360DegreeImage && originalPanorama ? [
+            // For 360° images, only provide original resolution to bypass intermediate quality
+            {
+              id: 'original',
+              label: 'High Quality',
+              panorama: originalPanorama,
+            },
+          ] : [
+            // Standard resolution handling for regular images
             {
               id: 'default',
               label: 'Default',
@@ -84,8 +93,12 @@
       // Enhanced mobile touch settings for better responsiveness
       touchmoveTwoFingers: false,
       mousewheelCtrlKey: false,
-      // Mobile optimized inertia settings for faster swipe response
+      // Mobile optimized settings for faster panning response (Google Maps-like)
       moveInertia: isMobileDevice(),
+      moveSpeed: isMobileDevice() ? 2.0 : 1.0, // Increased speed for mobile devices
+      zoomSpeed: isMobileDevice() ? 2.0 : 1.0, // Faster zoom on mobile
+      // Touch sensitivity improvements for mobile
+      touchmoveThreshold: isMobileDevice() ? 10 : 20, // Lower threshold for more responsive touch
       navbar,
       minFov: 10,
       maxFov: 120,
@@ -93,15 +106,14 @@
     });
     const resolutionPlugin = viewer.getPlugin(ResolutionPlugin) as ResolutionPlugin;
     
-    // For 360-degree images, we want to load high resolution immediately
-    // rather than waiting for zoom level changes
-    if (is360DegreeImage && originalPanorama && !$alwaysLoadOriginalFile) {
-      // Load original resolution by default for 360-degree images to save bandwidth
-      // and avoid unnecessary intermediate image generation
+    // For 360-degree images, we bypass intermediate resolutions entirely
+    // since they appear too blurry (8K 360° ≈ FullHD flat when viewing a portion)
+    if (is360DegreeImage && originalPanorama) {
+      // 360° images start with high resolution immediately - no zoom-based switching needed
       setTimeout(() => {
         void resolutionPlugin.setResolution('original');
       }, 100);
-    } else {
+    } else if (!$alwaysLoadOriginalFile && originalPanorama) {
       // Standard zoom-based resolution switching for regular images
       const zoomHandler = ({ zoomLevel }: events.ZoomUpdatedEvent) => {
         // zoomLevel range: [0, 100]
@@ -112,9 +124,7 @@
         }
       };
 
-      if (originalPanorama && !$alwaysLoadOriginalFile) {
-        viewer.addEventListener(events.ZoomUpdatedEvent.type, zoomHandler, { passive: true });
-      }
+      viewer.addEventListener(events.ZoomUpdatedEvent.type, zoomHandler, { passive: true });
     }
 
     // Handle gyroscope toggle functionality

@@ -28,14 +28,16 @@ export const isTouchDevice = (): boolean => {
 
 /**
  * Gets optimized swipe threshold based on device type
+ * Lower values = more sensitive/faster response
  */
 export const getSwipeThreshold = (): number => {
-  return isMobileDevice() ? 50 : 100; // Lower threshold for mobile for faster response
+  return isMobileDevice() ? 30 : 100; // Even lower threshold for mobile for faster response
 };
 
 /**
  * Gets optimized swipe velocity threshold based on device type
+ * Lower values = faster swipe recognition
  */
 export const getSwipeVelocity = (): number => {
-  return isMobileDevice() ? 0.3 : 0.5; // Lower velocity threshold for mobile
+  return isMobileDevice() ? 0.2 : 0.5; // Lower velocity threshold for mobile for faster recognition
 };
