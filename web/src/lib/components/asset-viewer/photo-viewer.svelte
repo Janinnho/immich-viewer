@@ -14,6 +14,7 @@
   import { photoZoomState } from '$lib/stores/zoom-image.store';
   import { getAssetOriginalUrl, getAssetThumbnailUrl, handlePromiseError } from '$lib/utils';
   import { canCopyImageToClipboard, copyImageToClipboard, isWebCompatibleImage } from '$lib/utils/asset-utils';
+  import { isMobileDevice, getSwipeThreshold, getSwipeVelocity } from '$lib/utils/device-utils';
   import { handleError } from '$lib/utils/handle-error';
   import { getBoundingBox } from '$lib/utils/people-utils';
   import { cancelImageUrl } from '$lib/utils/sw-messaging';
@@ -35,6 +36,7 @@
     sharedLink?: SharedLinkResponseDto | undefined;
     onPreviousAsset?: (() => void) | null;
     onNextAsset?: (() => void) | null;
+    onClose?: (() => void) | null;
     copyImage?: () => Promise<void>;
     zoomToggle?: (() => void) | null;
   }
@@ -47,6 +49,7 @@
     sharedLink = undefined,
     onPreviousAsset = null,
     onNextAsset = null,
+    onClose = null,
     copyImage = $bindable(),
     zoomToggle = $bindable(),
   }: Props = $props();
@@ -135,11 +138,17 @@
     if ($photoZoomState.currentZoom > 1) {
       return;
     }
-    if (onNextAsset && event.detail.direction === 'left') {
+    
+    const { direction } = event.detail;
+    
+    // Enhanced mobile responsiveness - faster navigation on mobile devices
+    if (direction === 'left' && onNextAsset) {
       onNextAsset();
-    }
-    if (onPreviousAsset && event.detail.direction === 'right') {
+    } else if (direction === 'right' && onPreviousAsset) {
       onPreviousAsset();
+    } else if (direction === 'bottom' && onClose) {
+      // Swipe down (bottom) to close image (go back)
+      onClose();
     }
   };
 
@@ -238,9 +247,13 @@
   {:else if !imageError}
     <div
       use:zoomImageAction
-      use:swipe={() => ({})}
+      use:swipe={() => ({
+        threshold: getSwipeThreshold(),
+        velocity: getSwipeVelocity(),
+        touchAction: 'none'
+      })}
       onswipe={onSwipe}
-      class="h-full w-full"
+      class="h-full w-full transition-opacity duration-300"
       transition:fade={{ duration: haveFadeTransition ? assetViewerFadeDuration : 0 }}
     >
       {#if $slideshowState !== SlideshowState.None && $slideshowLook === SlideshowLook.BlurredBackground}

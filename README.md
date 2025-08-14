@@ -48,6 +48,79 @@
 > [!NOTE]
 > You can find the main documentation, including installation guides, at https://immich.app/.
 
+## Docker Deployment Guide
+
+Simple guide to deploy this Immich fork using Docker after downloading the repository as a zip file.
+
+### Prerequisites
+
+- **Docker** and **Docker Compose** installed
+- At least **4GB RAM**
+- **10GB+ free disk space**
+
+### Deployment Steps
+
+#### 1. Download Repository
+
+Download this repository as a ZIP file from GitHub:
+- Click the green "Code" button on the GitHub page
+- Select "Download ZIP"
+- Extract the ZIP file to your desired location
+
+#### 2. Navigate to Docker Directory
+
+```bash
+cd immich-viewer-main/docker
+```
+
+#### 3. Create Environment File
+
+```bash
+cp example.env .env
+```
+
+#### 4. Edit Configuration
+
+Edit the `.env` file and change the database password:
+
+```bash
+nano .env
+```
+
+Change this line:
+```env
+DB_PASSWORD=your_secure_password_here
+```
+
+#### 5. Start Services
+
+```bash
+docker compose up -d
+```
+
+#### 6. Access Immich
+
+Open your browser and go to: `http://localhost:2283`
+
+Create your admin account and start using Immich!
+
+### Basic Commands
+
+**Stop services:**
+```bash
+docker compose down
+```
+
+**View logs:**
+```bash
+docker compose logs
+```
+
+**Update:**
+```bash
+docker compose pull && docker compose up -d
+```
+
 ## Links
 
 - [Documentation](https://immich.app/docs)

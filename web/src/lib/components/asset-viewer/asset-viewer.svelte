@@ -446,6 +446,7 @@
             {preloadAssets}
             onPreviousAsset={() => navigateAsset('previous')}
             onNextAsset={() => navigateAsset('next')}
+            onClose={closeViewer}
             haveFadeTransition={false}
             {sharedLink}
           />
@@ -490,6 +491,7 @@
               {preloadAssets}
               onPreviousAsset={() => navigateAsset('previous')}
               onNextAsset={() => navigateAsset('next')}
+              onClose={closeViewer}
               {sharedLink}
               haveFadeTransition={$slideshowState === SlideshowState.None || $slideshowTransition}
             />
